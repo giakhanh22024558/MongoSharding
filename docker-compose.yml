@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  configsvr:
+    image: mongo:6
+    container_name: configsvr
+    command: ["mongod", "--configsvr", "--replSet", "rs-config", "--port", "27017"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - configsvrdata:/data/db
+    networks:
+      - mongo-cluster
+
+  shard1:
+    image: mongo:6
+    container_name: shard1
+    command: ["mongod", "--shardsvr", "--replSet", "rs-shard-1", "--port", "27018"]
+    ports:
+      - "27018:27018"
+    volumes:
+      - shard1data:/data/db
+    networks:
+      - mongo-cluster
+
+  shard2:
+    image: mongo:6
+    container_name: shard2
+    command: ["mongod", "--shardsvr", "--replSet", "rs-shard-2", "--port", "27019"]
+    ports:
+      - "27019:27019"
+    volumes:
+      - shard2data:/data/db
+    networks:
+      - mongo-cluster
+
+  mongos:
+    image: mongo:6
+    container_name: mongos
+    depends_on:
+      - configsvr
+      - shard1
+      - shard2
+    ports:
+      - "27020:27017"
+    command: >
+      bash -c "
+        sleep 10 &&
+        mongos --configdb rs-config/configsvr:27017 --port 27017
+      "
+    networks:
+      - mongo-cluster
+
+volumes:
+  configsvrdata:
+  shard1data:
+  shard2data:
+
+networks:
+  mongo-cluster:
